@@ -1,6 +1,5 @@
 # Data
 data
-samples
 *.zip
 logs
 test*
@@ -86,3 +85,5 @@ Session.vim
 .netrwhist
 *~
 
+
+assets/
