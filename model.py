@@ -98,11 +98,12 @@ class DCGAN(object):
         self.D, self.D_logits = \
             self.discriminator(self.inputs, self.y, reuse=False)
 
-        self.sampler = self.sampler(self.z, self.y)
+        self.samplerIns = self.sampler(self.z, self.y)
         self.D_, self.D_logits_ = \
             self.discriminator(self.G, self.y, reuse=True)
 
-        self.E = self.encoder(self.sampler, self.y, reuse=False)
+        self.E = self.encoder(self.inputs, self.y, reuse=False)
+        self.Esampler = self.sampler(self.E, self.y)
         self.Etest = self.encoder(self.inputs, self.y, reuse=True)
 
         self.d_sum = histogram_summary("d", self.D)
@@ -119,7 +120,7 @@ class DCGAN(object):
         self.g_loss = tf.reduce_mean(
             sigmoid_cross_entropy_with_logits(self.D_logits_, tf.ones_like(self.D_)))
 
-        self.e_loss=tf.losses.mean_squared_error(self.z,self.E)
+        self.e_loss=tf.losses.mean_squared_error(self.inputs,self.Esampler)
 
         self.d_loss_real_sum = scalar_summary("d_loss_real", self.d_loss_real)
         self.d_loss_fake_sum = scalar_summary("d_loss_fake", self.d_loss_fake)
@@ -170,88 +171,76 @@ class DCGAN(object):
         else:
             print(" [!] Load failed...")
 
-        if not config.train_encoder:
-            for epoch in xrange(config.epoch):
-                batch_idxs = min(len(self.data_X), config.train_size) // config.batch_size
 
-                for idx in xrange(0, batch_idxs):
-                    batch_images = self.data_X[idx * config.batch_size:(idx + 1) * config.batch_size]
-                    batch_labels = self.data_y[idx * config.batch_size:(idx + 1) * config.batch_size]
-                    batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]).astype(np.float32)
+        for epoch in xrange(config.epoch):
+            batch_idxs = min(len(self.data_X), config.train_size) // config.batch_size
 
-                    # Update D network
-                    _, summary_str = self.sess.run([d_optim, self.d_sum],
-                                                   feed_dict={
-                                                       self.inputs: batch_images,
-                                                       self.z: batch_z,
-                                                       self.y: batch_labels,
-                                                   })
-                    self.writer.add_summary(summary_str, counter)
-
-                    # Update G network
-                    _, summary_str = self.sess.run([g_optim, self.g_sum],
-                                                   feed_dict={
-                                                       self.z: batch_z,
-                                                       self.y: batch_labels,
-                                                   })
-
-                    self.writer.add_summary(summary_str, counter)
-
-                    errD_fake = self.d_loss_fake.eval({
-                        self.z: batch_z,
-                        self.y: batch_labels
-                    })
-                    errD_real = self.d_loss_real.eval({
-                        self.inputs: batch_images,
-                        self.z: batch_z,
-                        self.y: batch_labels
-                    })
-                    errG = self.g_loss.eval({
-                        self.z: batch_z,
-                        self.y: batch_labels
-                    })
-
-                    counter += 1
-                    print("Epoch[%2d][%4d/%4d]time: %4.0f, d_loss: %.4f, g_loss: %.4f"% (epoch, idx, batch_idxs,
-                             time.time() - start_time, errD_fake + errD_real, errG))
-
-                    if np.mod(counter, 100) == 1:
-                        samples, d_loss, g_loss = self.sess.run(
-                            [self.sampler, self.d_loss, self.g_loss],
-                            feed_dict={
-                                self.z: sample_z,
-                                self.inputs: sample_inputs,
-                                self.y: sample_labels,
-                            }
-                        )
-                        manifold_h = int(np.ceil(np.sqrt(samples.shape[0])))
-                        manifold_w = int(np.floor(np.sqrt(samples.shape[0])))
-                        save_images(samples, [manifold_h, manifold_w],
-                                    './{}/train_{:02d}_{:04d}.png'.format(config.sample_dir, epoch, idx))
-                        print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
-
-                    if np.mod(counter, 500) == 2:
-                        self.save(config.checkpoint_dir, counter)
-        else:
-            for epoch in xrange(config.epoch):
+            for idx in xrange(0, batch_idxs):
+                batch_images = self.data_X[idx * config.batch_size:(idx + 1) * config.batch_size]
+                batch_labels = self.data_y[idx * config.batch_size:(idx + 1) * config.batch_size]
                 batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]).astype(np.float32)
-                batch_labels = np.random.choice(7,config.batch_size)
-                y_oh = np.zeros((config.batch_size, 7))
-                y_oh[np.arange(config.batch_size), batch_labels] = 1
+
+                # Update D network
+                _, summary_str = self.sess.run([d_optim, self.d_sum],
+                                               feed_dict={
+                                                   self.inputs: batch_images,
+                                                   self.z: batch_z,
+                                                   self.y: batch_labels,
+                                               })
+                self.writer.add_summary(summary_str, counter)
+
+                # Update G network
+                _, summary_str = self.sess.run([g_optim, self.g_sum],
+                                               feed_dict={
+                                                   self.z: batch_z,
+                                                   self.y: batch_labels,
+                                               })
+
+                self.writer.add_summary(summary_str, counter)
                 # Update E
                 _ = self.sess.run([e_optim],
                                   feed_dict={
-                                      self.z: batch_z,
-                                      self.y: y_oh,
+                                      self.inputs: batch_images,
+                                      self.y: batch_labels,
                               })
-                errE = self.e_loss.eval({
+                errD_fake = self.d_loss_fake.eval({
                     self.z: batch_z,
-                    self.y: y_oh
+                    self.y: batch_labels
                 })
-                if epoch%100==0:
-                    print("Epoch[%2d] time: %4.0f, e_loss: %.4f" % (epoch,time.time() - start_time,errE))
-                if epoch % 500 == 0:
-                    self.save(config.checkpoint_dir, 0)
+                errD_real = self.d_loss_real.eval({
+                    self.inputs: batch_images,
+                    self.z: batch_z,
+                    self.y: batch_labels
+                })
+                errG = self.g_loss.eval({
+                    self.z: batch_z,
+                    self.y: batch_labels
+                })
+                errE = self.e_loss.eval({
+                    self.inputs: batch_images,
+                    self.y: batch_labels,
+                })
+                counter += 1
+                print("[%2d][%4d/%4d]%4.0f/d_loss:%.4f/g_loss:%.4f/e_loss:%.4f"% (epoch, idx, batch_idxs,
+                         time.time() - start_time, errD_fake + errD_real, errG, errE))
+
+                if np.mod(counter, 100) == 1:
+                    samples, d_loss, g_loss = self.sess.run(
+                        [self.samplerIns, self.d_loss, self.g_loss],
+                        feed_dict={
+                            self.z: sample_z,
+                            self.inputs: sample_inputs,
+                            self.y: sample_labels,
+                        }
+                    )
+                    manifold_h = int(np.ceil(np.sqrt(samples.shape[0])))
+                    manifold_w = int(np.floor(np.sqrt(samples.shape[0])))
+                    save_images(samples, [manifold_h, manifold_w],
+                                './{}/train_{:02d}_{:04d}.png'.format(config.sample_dir, epoch, idx))
+                    print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+
+                if np.mod(counter, 500) == 2:
+                    self.save(config.checkpoint_dir, counter)
 
     def discriminator(self, image, y, reuse=False):
         with tf.variable_scope("discriminator") as scope:
@@ -278,7 +267,7 @@ class DCGAN(object):
 
             return tf.nn.sigmoid(h4), h4
 
-    def generator(self, z, y=None):
+    def generator(self, z, y=None, reuse=False):
         with tf.variable_scope("generator") as scope:
             s_h, s_w = self.output_height, self.output_width
             s_h2, s_h4, s_h8, s_h16 = int(s_h / 2), int(s_h / 4), int(s_h / 8), int(s_h / 16)

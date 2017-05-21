@@ -100,16 +100,18 @@ def visualize(sess, dcgan, config):
     y_one_hot = np.zeros((config.batch_size, 7))
     y_one_hot[np.arange(config.batch_size), y] = 1
 
-    samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample, dcgan.y: y_one_hot})
+    samples = sess.run(dcgan.samplerIns, feed_dict={dcgan.z: z_sample, dcgan.y: y_one_hot})
 
     save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_arange_%s.png' % (idx))
 
   data_X, data_y = load_csv()
   data_y=data_y[0:config.batch_size].astype(np.int)
-  z = sess.run(dcgan.Etest, feed_dict={dcgan.inputs:data_X[0:config.batch_size], dcgan.y: data_y})
+  z = sess.run(dcgan.Etest, feed_dict={dcgan.inputs:data_X[64:64+config.batch_size], dcgan.y: data_y})
+  save_images(data_X[64:64+config.batch_size], [image_frame_dim, image_frame_dim], './samples/test_encoder_original.png')
 
-  y_oh=np.zeros((config.batch_size,7))
-  y_oh[np.arange(config.batch_size), 3]=1
-  samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z, dcgan.y: y_oh })
-  save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_encoder.png')
-  save_images(data_X[0:config.batch_size], [image_frame_dim, image_frame_dim], './samples/test_encoder_original.png')
+  for idx in xrange(7):
+    y_oh=np.zeros((config.batch_size,7))
+    y_oh[np.arange(config.batch_size), idx]=1
+    samples = sess.run(dcgan.samplerIns, feed_dict={dcgan.z: z, dcgan.y: y_oh })
+    save_images(samples, [image_frame_dim, image_frame_dim], './samples/test_encoder_%s.png'%(idx))
+
