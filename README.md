@@ -1,5 +1,24 @@
 # Human Emotion Generation With Generative Adversarial Networks
 
-project for kth dd2424 deepl17 (deep learning in data science).
+What's this?
+---
 
-TODO: add readme tonight.
+We have trained DCGANs embedded in an autoencoder for generating human faces with arbitrary emotions.
+
+Inspirations
+---
+
+- [DCGAN](https://arxiv.org/pdf/1511.06434v2.pdf)
+- [CycleGAN](https://arxiv.org/pdf/1703.10593.pdf
+
+Members
+---
+
+- [Yiming Fan](mailto:yimingf@kth.se)
+- [Sicong Liu](mailto:yimingf@kth.)
+- [Wei Wang](mailto:sihuocun@gmail.com)
+
+About this repo
+---
+
+This repo contains the code and the report for the course project of kth dd2424 deepl17 (Deep Learning in Data Science).
