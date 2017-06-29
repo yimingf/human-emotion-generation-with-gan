@@ -5,7 +5,9 @@ What's this?
 
 We have trained DCGANs embedded in an autoencoder for generating human faces with arbitrary emotions.
 
-The structure look like this.
+Below shows some interesting results.
+
+![image](https://github.com/yimingf/human-emotion-generation-with-gan/blob/encoder/rm/result2.png)
 
 Inspirations
 ---
